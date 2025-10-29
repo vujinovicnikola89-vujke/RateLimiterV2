@@ -49,7 +49,7 @@ namespace RateLimiter.Middleware
                         if (entry.Count >= limit)
                         {
                             context.Response.StatusCode = 429;
-                            context.Response.Headers["Retry-After"] = (entry.ResetTime - DateTime.UtcNow).TotalSeconds.ToString("F0");
+                            //context.Response.Headers["Retry-After"] = (entry.ResetTime - DateTime.UtcNow).TotalSeconds.ToString("F0");
                             _logger.LogWarning("Rate limit exceeded for {Key}", key);
                             return;
                         }
