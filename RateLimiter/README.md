@@ -22,7 +22,7 @@ Biblioteku možete dodati:
 Nakon dodavanja NuGet paketa RateLimiter potrebno je upotrebiti funkcionalnos na nivou Program.cs na sledeci nacin :
 
 - builder.Services.AddRequestRateLimiting();
-- app.UseRateLimiter();
+- app.UseRequestRateLimiting();
 
 Custom configuracija moze biti prosledjena kao parametar metode AddRequestRateLimiting(), ako nije prosledjena uzima se u obzir defalt-ono podesavanje.
 Prevenstvo imaju podesavanja iz appsettings iz projketa gde je instaliran NuGet paket.
