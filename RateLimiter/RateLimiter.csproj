@@ -12,7 +12,7 @@
 	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageTags>aspnetcore;ratelimit;middleware</PackageTags>
 	<PackageLicenseExpression>MIT</PackageLicenseExpression>
-	<PackageProjectUrl>https://github.com/vujinovicnikola89-vujke/RateLimiter</PackageProjectUrl>
+	<PackageProjectUrl>https://github.com/vujinovicnikola89-vujke/RateLimiterV2</PackageProjectUrl>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
