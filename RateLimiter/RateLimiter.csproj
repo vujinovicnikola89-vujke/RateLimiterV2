@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>RateLimiter</PackageId>
+    <Version>1.0.2</Version>
+    <Authors>Vujinovic Nikola</Authors>
+    <Description>Custom self-contained rate limiting middleware for ASP.NET Core</Description>
+	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageTags>aspnetcore;ratelimit;middleware</PackageTags>
+	<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	<PackageProjectUrl>https://github.com/vujinovicnikola89-vujke/RateLimiter</PackageProjectUrl>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+  	<None Include="README.md" Pack="true" PackagePath="" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" />
+  </ItemGroup>
+
+</Project>
