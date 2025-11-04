@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 using RateLimiterConfig = RateLimiter.Models.RateLimiter;
 
 namespace RateLimiter.Middleware
@@ -10,16 +12,18 @@ namespace RateLimiter.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<RateLimiterMiddleware> _logger;
         private readonly RateLimiterConfig _config;
-        private static readonly Dictionary<string, (int Count, DateTime ResetTime)> _requests = new();
+        private readonly IMemoryCache _cache;
 
         public RateLimiterMiddleware(
             RequestDelegate next,
             ILogger<RateLimiterMiddleware> logger,
-            IOptions<RateLimiterConfig> options)
+            IOptions<RateLimiterConfig> options,
+            IMemoryCache cache)
         {
             _next = next;
             _logger = logger;
             _config = options.Value;
+            _cache = cache;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -36,38 +40,74 @@ namespace RateLimiter.Middleware
             var endpointConfig = _config.EndpointLimits.FirstOrDefault(e => path.StartsWith(e.Endpoint, StringComparison.OrdinalIgnoreCase));
 
             var limit = endpointConfig?.RequestLimitCount ?? _config.DefaultRequestLimitCount;
-            var window = TimeSpan.FromMilliseconds(endpointConfig?.RequestLimitMs ?? _config.DefaultRequestLimitMs);
+            var windowMs = endpointConfig?.RequestLimitMs ?? _config.DefaultRequestLimitMs;
+            var refillRate = (double)limit / windowMs * 1000; // tokens per second
 
             var key = $"{ip}:{path}";
+            var now = DateTime.UtcNow;
+            bool isLimited;
 
-            lock (_requests)
+            var state = _cache.GetOrCreate(key, entry =>
             {
-                if (_requests.TryGetValue(key, out var entry))
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(windowMs * 2);
+                return new TokenBucket
                 {
-                    if (entry.ResetTime > DateTime.UtcNow)
-                    {
-                        if (entry.Count >= limit)
-                        {
-                            context.Response.StatusCode = 429;
-                            //context.Response.Headers["Retry-After"] = (entry.ResetTime - DateTime.UtcNow).TotalSeconds.ToString("F0");
-                            _logger.LogWarning("Rate limit exceeded for {Key}", key);
-                            return;
-                        }
+                    Tokens = limit,
+                    LastRefill = now
+                };
+            });
 
-                        _requests[key] = (entry.Count + 1, entry.ResetTime);
-                    }
-                    else
-                    {
-                        _requests[key] = (1, DateTime.UtcNow.Add(window));
-                    }
+            lock (state)
+            {
+                
+                var elapsed = (now - state.LastRefill).TotalMilliseconds;
+                var refillAmount = elapsed * refillRate / 1000;
+                if (refillAmount > 0)
+                {
+                    state.Tokens = Math.Min(limit, state.Tokens + refillAmount);
+                    state.LastRefill = now;
+                }
+
+                if (state.Tokens >= 1)
+                {
+                    state.Tokens -= 1;
+                    isLimited = false;
                 }
                 else
                 {
-                    _requests[key] = (1, DateTime.UtcNow.Add(window));
+                    isLimited = true;
                 }
             }
 
+            if (isLimited)
+            {
+                _logger.LogWarning("Rate limit exceeded for {Key}", key);
+                await Return429Async(context, limit);
+                return;
+            }
+
             await _next(context);
+        }
+
+        private static async Task Return429Async(HttpContext context, int limit)
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.Response.ContentType = "application/json";
+
+
+            var response = new
+            {
+                error = "Too many requests",
+                limit,
+            };
+
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        }
+
+        private class TokenBucket
+        {
+            public double Tokens { get; set; }
+            public DateTime LastRefill { get; set; }
         }
     }
 }

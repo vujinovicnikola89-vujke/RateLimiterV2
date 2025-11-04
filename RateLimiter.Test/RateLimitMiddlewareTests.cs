@@ -5,6 +5,7 @@ using RateLimiter.Middleware;
 using System.Net;
 using RateLimiterConfig = RateLimiter.Models.RateLimiter;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace RateLimiter.Tests
 {
@@ -13,10 +14,13 @@ namespace RateLimiter.Tests
     {
         private readonly Mock<ILogger<RateLimiterMiddleware>> _loggerMock =  new Mock<ILogger<RateLimiterMiddleware>>();
         private IOptions<RateLimiterConfig> _conf;
+        private readonly IMemoryCache _cache;
 
-        [TestInitialize]
-        public void Setup()
+
+        public RateLimitMiddlewareTests()
         {
+            _cache = new MemoryCache(new MemoryCacheOptions());
+
             _conf = Options.Create(new RateLimiterConfig
             {
                 RequestLimiterEnabled = true,
@@ -30,7 +34,7 @@ namespace RateLimiter.Tests
         {
             // Arrange
             var context = CreateHttpContext();
-            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, _conf);
+            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, _conf, _cache);
 
             // Act
             await middleware.InvokeAsync(context);
@@ -45,17 +49,18 @@ namespace RateLimiter.Tests
         {
             // Arrange
             var context = CreateHttpContext();
-            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, _conf);
+            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, _conf, _cache);
 
             // Act
             await middleware.InvokeAsync(context); // prvi put - dozvoljen
             await middleware.InvokeAsync(context); // drugi put - dozvoljen
             await middleware.InvokeAsync(context); // treci put - dozvoljen
             await middleware.InvokeAsync(context); // cetvrti put - dozvoljen
-            await middleware.InvokeAsync(context); // peti put - blokiran
+            await middleware.InvokeAsync(context); // peti put dozvoljen
+            await middleware.InvokeAsync(context); // sesti put - blokiran
 
             // Assert
-            Assert.AreEqual(429, context.Response.StatusCode);
+            Assert.AreEqual(StatusCodes.Status429TooManyRequests, context.Response.StatusCode);
             //Assert.IsTrue(context.Response.Headers.ContainsKey("Retry-After"));
         }
 
@@ -64,7 +69,7 @@ namespace RateLimiter.Tests
         {
             // Arrange
             var context = CreateHttpContext();
-            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, _conf);
+            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, _conf, _cache);
 
             // Act
             await middleware.InvokeAsync(context); // prvi put
@@ -81,7 +86,7 @@ namespace RateLimiter.Tests
             // Arrange
             var context = CreateHttpContext();
             var disabledOptions = Options.Create(new RateLimiterConfig { RequestLimiterEnabled = false });
-            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, disabledOptions);
+            var middleware = new RateLimiterMiddleware(_ => Task.CompletedTask, _loggerMock.Object, disabledOptions, _cache);
 
             // Act
             await middleware.InvokeAsync(context);
