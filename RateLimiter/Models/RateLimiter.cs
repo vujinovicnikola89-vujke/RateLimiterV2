@@ -1,6 +1,6 @@
 ﻿namespace RateLimiter.Models
 {
-    public class RateLimiter
+    public record RateLimiter
     {
         /// <summary>
         /// Omogućava ili onemogućava rate limiting

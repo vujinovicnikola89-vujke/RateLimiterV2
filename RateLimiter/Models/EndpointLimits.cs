@@ -1,6 +1,6 @@
 ﻿namespace RateLimiter.Models
 {
-    public class EndpointLimits
+    public record EndpointLimits
     {
 
         /// <summary>
